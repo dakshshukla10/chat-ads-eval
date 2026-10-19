@@ -1,0 +1,56 @@
+[
+  {"id":"p-1001","title":"Trailblaze Running Shoes","category":"footwear","keywords":["running","shoes","jogging","marathon","sneakers","trail"]},
+  {"id":"p-1002","title":"CloudStep Walking Sneakers","category":"footwear","keywords":["walking","sneakers","comfortable","everyday","travel"]},
+  {"id":"p-1003","title":"Alpine Hiking Boots","category":"footwear","keywords":["hiking","boots","waterproof","trek","trail"]},
+
+  {"id":"p-1101","title":"Nimbus 14 Ultrabook","category":"laptops","keywords":["laptop","ultrabook","lightweight","student","portable"]},
+  {"id":"p-1102","title":"Forge Gaming Laptop","category":"laptops","keywords":["gaming","laptop","graphics","gpu"]},
+
+  {"id":"p-1201","title":"Quiet Pro Noise Cancelling Headphones","category":"headphones","keywords":["headphones","noise","cancelling","commute","travel","over-ear"]},
+  {"id":"p-1202","title":"PulseBuds Wireless Earbuds","category":"headphones","keywords":["earbuds","wireless","workout","running"]},
+
+  {"id":"p-1301","title":"Everyday Chef Knife Set","category":"kitchen","keywords":["knife","chef","cooking","cook","blades"]},
+  {"id":"p-1302","title":"AirCrisp Air Fryer","category":"kitchen","keywords":["air","fryer","crispy","fries","cooking","oil-free"]},
+  {"id":"p-1303","title":"ProBlend Countertop Blender","category":"kitchen","keywords":["blender","smoothie","smoothies","protein","shakes"]},
+
+  {"id":"p-1401","title":"Morning Brew Pour-Over Kit","category":"coffee","keywords":["coffee","pour-over","brewing","brew","dripper"]},
+  {"id":"p-1402","title":"BeanCraft Burr Grinder","category":"coffee","keywords":["coffee","grinder","grind","beans","espresso"]},
+
+  {"id":"p-1501","title":"FlexGrip Adjustable Dumbbells","category":"fitness","keywords":["dumbbells","strength","weights","gym","training"]},
+  {"id":"p-1502","title":"CoreFlow Yoga Mat","category":"fitness","keywords":["yoga","mat","stretching","pilates","exercise"]},
+  {"id":"p-1503","title":"PowerLoop Resistance Bands","category":"fitness","keywords":["resistance","bands","strength","stretching","exercise"]},
+
+  {"id":"p-1601","title":"Summit 2-Person Tent","category":"outdoor","keywords":["camping","tent","camp","backpacking","shelter"]},
+  {"id":"p-1602","title":"NightGlow Headlamp","category":"outdoor","keywords":["headlamp","flashlight","camping","night","light"]},
+  {"id":"p-1603","title":"TrailPure Water Filter","category":"outdoor","keywords":["water","filter","hiking","camping","backpacking"]},
+
+  {"id":"p-1701","title":"ErgoRise Standing Desk","category":"home-office","keywords":["desk","standing","workspace","office"]},
+  {"id":"p-1702","title":"LumbarCloud Ergonomic Office Chair","category":"home-office","keywords":["chair","ergonomic","back","pain","office","lumbar"]},
+  {"id":"p-1703","title":"GlowDesk LED Lamp","category":"home-office","keywords":["lamp","desk","lighting","reading","led"]},
+
+  {"id":"p-1801","title":"DailyShield SPF 50 Sunscreen","category":"skincare","keywords":["sunscreen","spf","sun","protection","sensitive","skin"]},
+  {"id":"p-1802","title":"HydraCalm Moisturizer","category":"skincare","keywords":["moisturizer","dry","skin","hydrating","winter"]},
+  {"id":"p-1803","title":"GentleFoam Face Cleanser","category":"skincare","keywords":["cleanser","face","wash","skin","sensitive"]},
+
+  {"id":"p-1901","title":"BuildBrick Building Blocks Set","category":"toys","keywords":["blocks","building","kids","toddler","bricks"]},
+  {"id":"p-1902","title":"PuzzleWorld 500-Piece Jigsaw Puzzle","category":"toys","keywords":["puzzle","jigsaw","family","game"]},
+
+  {"id":"p-2001","title":"Learn Python the Practical Way","category":"books","keywords":["python","programming","beginner","coding","learn"]},
+  {"id":"p-2002","title":"The Quiet Garden: A Novel","category":"books","keywords":["novel","fiction","reading","story"]},
+
+  {"id":"p-2101","title":"PawComfort Orthopedic Dog Bed","category":"pet-supplies","keywords":["dog","bed","pet","orthopedic","senior"]},
+  {"id":"p-2102","title":"WhiskerPlay Cat Tree","category":"pet-supplies","keywords":["cat","climbing","scratching","pet","tree"]},
+
+  {"id":"p-2201","title":"GreenThumb Herb Planter","category":"garden","keywords":["herbs","planter","garden","kitchen","indoor"]},
+  {"id":"p-2202","title":"RainBird Expandable Garden Hose","category":"garden","keywords":["hose","garden","watering","outdoor-hose"]},
+
+  {"id":"p-2301","title":"Orbit X Smartphone","category":"smartphones","keywords":["smartphone","phone","android","camera"]},
+  {"id":"p-2302","title":"ShieldFit Phone Case","category":"phone-accessories","keywords":["case","phone","protection","cover"]},
+
+  {"id":"p-2401","title":"Daypack Commuter Backpack","category":"backpacks","keywords":["backpack","commute","school","laptop","bag"]},
+
+  {"id":"p-9001","title":"Cloudline Vape Starter Kit","category":"tobacco","keywords":["vape","vaping","e-cigarette","nicotine"]},
+  {"id":"p-9002","title":"Ridgeback Rifle Scope","category":"weapons","keywords":["rifle","scope","hunting","firearm","gun"]},
+  {"id":"p-9003","title":"Oak and Ember Single Malt Whisky","category":"alcohol","keywords":["whisky","whiskey","spirits","malt","liquor"]},
+  {"id":"p-9004","title":"HighRoller Online Casino Credits","category":"gambling","keywords":["casino","betting","gambling","poker","slots"]}
+]

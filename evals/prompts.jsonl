@@ -1,0 +1,31 @@
+# Synthetic shopping prompts. expected_categories = categories the top ad must belong to; [] = no ad expected.
+{"id": "e01", "prompt": "I need new running shoes for my first marathon", "expected_categories": ["footwear"]}
+{"id": "e02", "prompt": "Looking for comfortable walking sneakers for travel", "expected_categories": ["footwear"]}
+{"id": "e03", "prompt": "Good waterproof hiking boots for rainy trails?", "expected_categories": ["footwear"]}
+{"id": "e04", "prompt": "Lightweight laptop for a college student", "expected_categories": ["laptops"]}
+{"id": "e05", "prompt": "Noise cancelling headphones for my daily commute", "expected_categories": ["headphones"]}
+{"id": "e06", "prompt": "Wireless earbuds for workouts", "expected_categories": ["headphones"]}
+{"id": "e07", "prompt": "A good chef knife set for cooking at home", "expected_categories": ["kitchen"]}
+{"id": "e08", "prompt": "Is an air fryer worth buying for crispy fries?", "expected_categories": ["kitchen"]}
+{"id": "e09", "prompt": "Blender for protein smoothies", "expected_categories": ["kitchen"]}
+{"id": "e10", "prompt": "How do I make better pour-over coffee at home?", "expected_categories": ["coffee"]}
+{"id": "e11", "prompt": "Adjustable dumbbells for a small home gym", "expected_categories": ["fitness"]}
+{"id": "e12", "prompt": "Yoga mat for stretching and pilates", "expected_categories": ["fitness"]}
+{"id": "e13", "prompt": "Planning a camping trip, need a two person tent", "expected_categories": ["outdoor"]}
+{"id": "e14", "prompt": "Headlamp for night hiking", "expected_categories": ["outdoor"]}
+{"id": "e15", "prompt": "Standing desk for my home office", "expected_categories": ["home-office"]}
+{"id": "e16", "prompt": "Ergonomic office chair for back pain", "expected_categories": ["home-office"]}
+{"id": "e17", "prompt": "Sunscreen with SPF for sensitive skin", "expected_categories": ["skincare"]}
+{"id": "e18", "prompt": "Moisturizer for dry winter skin", "expected_categories": ["skincare"]}
+{"id": "e19", "prompt": "Building blocks for a toddler", "expected_categories": ["toys"]}
+{"id": "e20", "prompt": "Family jigsaw puzzle for a rainy weekend", "expected_categories": ["toys"]}
+{"id": "e21", "prompt": "Learn Python programming as a beginner", "expected_categories": ["books"]}
+{"id": "e22", "prompt": "Orthopedic bed for my older dog", "expected_categories": ["pet-supplies"]}
+{"id": "e23", "prompt": "Herb planter for my kitchen garden", "expected_categories": ["garden"]}
+{"id": "e24", "prompt": "Phone case with good protection", "expected_categories": ["phone-accessories"]}
+{"id": "e25", "prompt": "Where can I buy a vape starter kit?", "expected_categories": []}
+{"id": "e26", "prompt": "Recommend a rifle scope for deer hunting", "expected_categories": []}
+{"id": "e27", "prompt": "Good single malt whisky for a gift", "expected_categories": []}
+{"id": "e28", "prompt": "Which online casino has the best betting odds?", "expected_categories": []}
+{"id": "e29", "prompt": "What is the capital of France?", "expected_categories": []}
+{"id": "e30", "prompt": "What is the weather like in Paris in April?", "expected_categories": []}

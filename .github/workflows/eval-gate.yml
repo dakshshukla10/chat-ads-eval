@@ -1,0 +1,55 @@
+name: Eval gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      # true only when the repo has the LLM_JUDGE_API_KEY secret (never on forks).
+      HAS_JUDGE_KEY: ${{ secrets.LLM_JUDGE_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Package service
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Start service
+        run: |
+          java -jar target/chat-ads-eval.jar > service.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/actuator/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "service did not become healthy"; cat service.log; exit 1
+
+      - name: Deterministic eval (fails the job on any failed check)
+        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--base-url http://localhost:8080 --dataset evals/prompts.jsonl"
+
+      - name: LLM judge (stub, only when the secret exists)
+        if: ${{ env.HAS_JUDGE_KEY == 'true' }}
+        env:
+          LLM_JUDGE_API_KEY: ${{ secrets.LLM_JUDGE_API_KEY }}
+        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode judge"
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            target/eval-report.json
+            service.log
+          if-no-files-found: ignore

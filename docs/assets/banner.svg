@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="t d">
+  <title id="t">chat-ads-eval</title>
+  <desc id="d">Contextual sponsored-product ads for shopping chat, guarded by a CI eval gate.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#14204a"/>
+      <stop offset="1" stop-color="#2b1b5e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" fill="url(#bg)"/>
+  <circle cx="1060" cy="60" r="150" fill="#38bdf8" opacity="0.07"/>
+  <circle cx="1130" cy="260" r="110" fill="#a78bfa" opacity="0.10"/>
+
+  <!-- chat bubble with a labeled ad chip -->
+  <g transform="translate(90 80)">
+    <rect x="0" y="0" width="150" height="86" rx="18" fill="#1e2a55" stroke="#38bdf8" stroke-width="2"/>
+    <path d="M26 86 L18 112 L52 86 Z" fill="#1e2a55" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="22" y="20" width="106" height="9" rx="4.5" fill="#64748b"/>
+    <rect x="22" y="38" width="70" height="9" rx="4.5" fill="#64748b"/>
+    <rect x="22" y="58" width="74" height="18" rx="9" fill="url(#accent)"/>
+    <text x="59" y="71.5" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0b1020" text-anchor="middle">Sponsored</text>
+  </g>
+
+  <text x="290" y="146" font-family="Helvetica, Arial, sans-serif" font-size="68" font-weight="800" fill="#f8fafc">chat-ads-eval</text>
+  <rect x="292" y="162" width="140" height="5" rx="2.5" fill="url(#accent)"/>
+  <text x="292" y="210" font-family="Helvetica, Arial, sans-serif" font-size="25" fill="#cbd5e1">Contextual sponsored-product ads for shopping chat,</text>
+  <text x="292" y="244" font-family="Helvetica, Arial, sans-serif" font-size="25" fill="#cbd5e1">guarded by a CI eval gate.</text>
+</svg>

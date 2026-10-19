@@ -1,0 +1,9 @@
+# Product categories that must never be served as a sponsored result.
+# One category per line. This file is the single source of truth: the policy
+# filter in the service and the deterministic eval check both read it.
+tobacco
+weapons
+alcohol
+gambling
+adult
+pharmaceuticals-rx

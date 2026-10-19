@@ -5,6 +5,10 @@ import com.zaxxer.hikari.HikariDataSource;
 import dev.chatads.embedding.Embedder;
 import dev.chatads.embedding.HashingEmbedder;
 import dev.chatads.embedding.HttpEmbedder;
+import dev.chatads.embedding.MeteredEmbedder;
+import dev.chatads.llm.PriceTable;
+import dev.chatads.metrics.LlmUsageMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
 import dev.chatads.metrics.AdMetrics;
 import dev.chatads.retrieval.Catalog;
 import dev.chatads.retrieval.HybridRetriever;
@@ -39,18 +43,29 @@ public class RetrievalConfig {
     }
 
     @Bean
+    LlmUsageMetrics llmUsageMetrics(MeterRegistry registry) {
+        return new LlmUsageMetrics(registry, PriceTable.load());
+    }
+
+    @Bean
     Embedder embedder(
+            LlmUsageMetrics usage,
             @Value("${chatads.embedding.provider}") String provider,
             @Value("${chatads.embedding.dimensions}") int dimensions,
             @Value("${chatads.embedding.base-url}") String baseUrl,
             @Value("${chatads.embedding.model}") String model,
             @Value("${chatads.embedding.api-key}") String apiKey) {
-        return switch (provider.toLowerCase()) {
-            case "hash" -> new HashingEmbedder(dimensions);
-            case "openai" -> new HttpEmbedder(HttpEmbedder.Flavor.OPENAI, baseUrl, model, apiKey, dimensions, Duration.ofSeconds(5));
-            case "ollama" -> new HttpEmbedder(HttpEmbedder.Flavor.OLLAMA, baseUrl, model, apiKey, dimensions, Duration.ofSeconds(5));
+        HttpEmbedder.Flavor flavor = switch (provider.toLowerCase()) {
+            // The offline embedder calls no model, so there is nothing to meter.
+            case "hash" -> null;
+            case "openai" -> HttpEmbedder.Flavor.OPENAI;
+            case "ollama" -> HttpEmbedder.Flavor.OLLAMA;
             default -> throw new IllegalArgumentException("chatads.embedding.provider must be hash, openai or ollama, got " + provider);
         };
+        if (flavor == null) {
+            return new HashingEmbedder(dimensions);
+        }
+        return new MeteredEmbedder(new HttpEmbedder(flavor, baseUrl, model, apiKey, dimensions, Duration.ofSeconds(5)), model, usage);
     }
 
     @Bean

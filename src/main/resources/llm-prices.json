@@ -1,0 +1,9 @@
+{
+  "as_of": "2026-10",
+  "currency": "USD",
+  "note": "Dollars per million tokens, copied from provider price pages. Check them before trusting a cost figure. A model that is not listed costs zero.",
+  "models": {
+    "text-embedding-3-small": { "input_per_million": 0.02, "output_per_million": 0 },
+    "gpt-4o-mini": { "input_per_million": 0.15, "output_per_million": 0.60 }
+  }
+}

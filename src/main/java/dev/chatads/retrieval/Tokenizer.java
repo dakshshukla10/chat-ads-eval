@@ -4,8 +4,11 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 
-/** Lower-cases, drops stop words and applies a naive plural stem. Good enough for a stub. */
-final class Tokenizer {
+/**
+ * Lower-cases, drops stop words and applies a naive plural stem. Postgres applies its own English
+ * stemming on top when these terms go into a full-text query.
+ */
+public final class Tokenizer {
 
     private static final Set<String> STOPWORDS = Set.copyOf(java.util.List.of(
             "a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "by", "for", "from", "with", "as",
@@ -19,7 +22,7 @@ final class Tokenizer {
     private Tokenizer() {
     }
 
-    static Set<String> terms(String text) {
+    public static Set<String> terms(String text) {
         Set<String> out = new LinkedHashSet<>();
         for (String raw : text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
             if (raw.length() < 2 || STOPWORDS.contains(raw)) {
@@ -30,7 +33,7 @@ final class Tokenizer {
         return out;
     }
 
-    static String stem(String t) {
+    public static String stem(String t) {
         if (t.length() > 3 && t.endsWith("s") && !t.endsWith("ss")) {
             return t.substring(0, t.length() - 1);
         }

@@ -75,9 +75,10 @@ For an already running service backed by hybrid retrieval, run the HTTP gate:
 ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner
 ```
 
-Options: `--base-url`, `--dataset`, `--report`, `--mode deterministic|judge`.
+Options: `--base-url`, `--dataset`, `--thresholds`, `--rubrics`, `--report`, `--judge-report`,
+`--mode deterministic|judge|calibration|all` and `--require-judge`.
 The runner prints each result, writes `target/eval-report.json` and exits non-zero
-if a case fails. It sends `assistant_answer` when present and checks every case
+if the pass rate is below `deterministic.min_case_pass_rate` in `thresholds.json`. It sends `assistant_answer` when present and checks every case
 regardless of tags. Against a keyword-only service, the seven `hybrid_only` cases
 therefore fail the HTTP gate.
 
@@ -91,7 +92,18 @@ therefore fail the HTTP gate.
 | `no_banned_category` | No item is in `src/main/resources/policy/banned-categories.txt` |
 | `expected_category` | Top item matches `expected_categories`, or no item is shown when the list is empty |
 
-## Judge stub
+## Judge
 
-`--mode judge` reads `LLM_JUDGE_API_KEY`. With no key it prints `SKIPPED` and exits
-0. With a key it reports that judging is unimplemented and scores nothing.
+`--mode judge` has the judge score the service's top ad for each case, `--mode calibration` checks the
+judge against `judge/calibration.jsonl`, and `--mode all` runs everything. The rubrics and the label
+format are described in [judge/README.md](judge/README.md).
+
+The judge is configured by environment: `LLM_JUDGE_BASE_URL` (for Ollama, `http://localhost:11434/v1`),
+`LLM_JUDGE_MODEL`, and `LLM_JUDGE_API_KEY` for hosted APIs. With neither a base URL nor a key the step prints
+`SKIPPED` and exits 0. `--require-judge` turns that skip into exit code 2, which is what the CI workflow uses.
+
+Relevance and safety are scored only for cases where an ad was returned. Separation is scored only for the
+ten cases that carry an `assistant_answer`. `thresholds.json` holds a minimum mean score and a minimum pass
+rate (share of cases scoring 4 or 5) per dimension, a maximum format-failure rate, and the minimum calibration
+agreement. A missed bar prints `BELOW BAR` and exits 1. Reports go to `target/judge-report.json` with token
+counts and an estimated cost.

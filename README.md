@@ -1,168 +1,130 @@
 <p align="center"><img src="docs/assets/banner.svg" width="100%" alt="chat-ads-eval banner"/></p>
 
-<h1 align="center">chat-ads-eval — Contextual Ads for Shopping Chat</h1>
+<h1 align="center">chat-ads-eval</h1>
 
-<p align="center"><strong>Relevant, clearly labeled sponsored products for conversational shopping, guarded by a CI eval gate.</strong></p>
+<p align="center">A contextual ad service using hybrid keyword and vector search to return a clearly labeled sponsored product kept separate from the chat answer, behind a CI/CD eval gate with deterministic checks and LLM-as-judge evaluation.</p>
 
 <p align="center">
   <a href="https://github.com/dakshshukla10/chat-ads-eval/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/dakshshukla10/chat-ads-eval/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" alt="CI status"/></a>
   <a href="https://github.com/dakshshukla10/chat-ads-eval/actions/workflows/eval-gate.yml"><img src="https://img.shields.io/github/actions/workflow/status/dakshshukla10/chat-ads-eval/eval-gate.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=Eval%20gate" alt="Eval gate status"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="MIT license"/></a>
-  <img src="https://img.shields.io/badge/Status-in%20development-orange.svg?style=for-the-badge" alt="status: in development"/>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Java-21-ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21"/>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F.svg?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.5"/>
-  <img src="https://img.shields.io/badge/Redis-cache%20(planned)-DC382D.svg?style=for-the-badge&logo=redis&logoColor=white" alt="Redis cache planned"/>
+  <img src="https://img.shields.io/badge/Redis-cache-DC382D.svg?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+  <img src="https://img.shields.io/badge/Postgres-pgvector-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="Postgres with pgvector"/>
   <img src="https://img.shields.io/badge/Prometheus-metrics-E6522C.svg?style=for-the-badge&logo=prometheus&logoColor=white" alt="Prometheus"/>
   <img src="https://img.shields.io/badge/Grafana-dashboard-F46800.svg?style=for-the-badge&logo=grafana&logoColor=white" alt="Grafana"/>
-  <img src="https://img.shields.io/badge/Docker-compose-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Compose"/>
 </p>
 
-> 🚧 **Status: in active development**
-> _Phase 1 complete — see the roadmap below._ Retrieval is a keyword stub over a synthetic catalog; nothing here has been run on real traffic.
+The catalog, the eval prompts and the labeled judge cases are all synthetic, and nothing here has seen real traffic. The numbers below come from runs on that synthetic data.
 
----
-
-## 💡 Why
+## Why
 
 Shopping assistants are becoming a place where people decide what to buy, and ads shown there have to meet three bars:
 
-- **Relevant:** the sponsored product fits what the shopper just asked for.
-- **Clearly labeled:** every ad says `Sponsored`, in a field of its own.
-- **Separate from the answer:** ad text never leaks into the assistant's answer.
+- The sponsored product fits what the shopper just asked for.
+- Every ad says `Sponsored`, in a field of its own.
+- Ad text never leaks into the assistant's answer.
 
-Prompts, models and ranking rules change often, and any of those changes can quietly break one of the three. This repo treats the checks as code: a regression gate runs on every change.
+Prompts, models and ranking rules change often, and any of those changes can quietly break one of the three. This repo treats the checks as code and runs them on every change.
 
----
+## What it does
 
-## ✨ Features
-
-### ⚡ 1. Contextual ad service
-
-- **Endpoint:** `POST /v1/ads/contextual` takes `{prompt}` and returns labeled sponsored items.
-- **Separate slots:** `answer_slot` is always `null` here; the host assistant owns the answer.
-- **Pipeline:** retrieve, policy filter, rank, label, in separate packages (`retrieval`, `policy`, `ranking`, `api`).
+`POST /v1/ads/contextual` takes a shopper prompt (and, optionally, the answer the host assistant already wrote) and returns up to three labeled sponsored items.
 
 ```json
 {
-  "answer_slot": null,
+  "answer_slot": "Look for a light shoe with a wide toe box.",
   "sponsored": [
     {
       "product_id": "p-1001",
       "title": "Trailblaze Running Shoes",
       "label": "Sponsored",
-      "reason": "Matches your request: running, shoe"
+      "reason": "Matches your request: running, shoe, marathon"
     }
   ]
 }
 ```
 
-### 🛡️ 2. Eval gate
+`answer_slot` is the host's text, returned untouched, or null when none was sent. The service never writes it and never uses it to pick ads.
 
-- **Deterministic checks:** a small Java library checks schema, label, ad/answer separation and banned categories.
-- **Eval set:** 30 synthetic shopping prompts with expected categories, in `evals/prompts.jsonl`.
-- **CI gate:** a runner exits non-zero when any check fails; an LLM judge is wired as a skipped stub.
+The pipeline is a Redis candidate cache, then retrieval, then the policy filter, then ranking. Retrieval is hybrid: Postgres full-text search and pgvector similarity, merged by reciprocal rank fusion. If Postgres or the embedder fails, an in-memory keyword retriever answers and the request is counted under `chatads_fallback_total{reason="backend_error"}`. Details are in [docs/architecture.md](docs/architecture.md).
 
-### 📈 3. Observability
+An example of what hybrid retrieval buys: the prompt `runing shose` has no word in common with the catalog, so the keyword retriever returns nothing, while the vector side matches it through character trigrams. Seven of the 65 eval cases (six misspellings and the one-word prompt `coffee`) fail on the keyword baseline and pass on hybrid retrieval, and a test enforces both halves.
 
-- **Prometheus endpoint:** `/actuator/prometheus` with request, served, fallback and policy-filtered counters.
-- **Grafana:** provisioned dashboard with panels for p95 latency, token cost and fallback rate.
+## Status
 
-### Feature status
-
-| Feature | Status | Notes |
+| Area | State | Notes |
 | :-- | :-: | :-- |
-| Spring Boot skeleton and `/v1/ads/contextual` | ✅ | Keyword-stub retrieval over an in-memory synthetic catalog |
-| Policy filter (banned categories) | ✅ | One shared list, used by the filter and by the eval check |
-| Deterministic eval checks (library + tests) | ✅ | JUnit 5 |
-| Eval set and runner | ✅ | 30 synthetic prompts, exit code 1 on failure |
-| CI and eval-gate workflows | ✅ | GitHub Actions |
-| Prometheus metrics endpoint | ✅ | Counters and a latency histogram |
-| Grafana dashboard | 🚧 | Panels exist; token cost stays at zero until a model is called |
-| Docker Compose stack | 🚧 | Redis and Postgres+pgvector run but the service does not use them yet |
-| Hybrid keyword + vector retrieval | 🚧 | Design chosen in [docs/architecture.md](docs/architecture.md); not built |
-| Redis response cache | 📋 | Planned, Phase 2 |
-| LLM-as-judge | 📋 | Stub only: reads a key from the environment, scores nothing |
-| Eval thresholds in CI | 📋 | Planned, Phase 3 |
-| Kubernetes deploy | 📋 | Planned, Phase 5 |
+| Service, policy filter, ranking | Done | Spring Boot 3.5, Java 21 |
+| Hybrid retrieval | Done | `tsvector` with `ts_rank_cd` (not BM25) plus pgvector, fused with RRF |
+| Embeddings | Done | Offline hashing embedder by default; OpenAI-compatible and Ollama clients behind env vars |
+| Keyword fallback | Done | In-memory, counted as `backend_error` |
+| Redis cache | Done | Caches candidates before the policy filter; tested against a real Redis |
+| Deterministic eval checks | Done | 65 cases, run in-process and over HTTP |
+| LLM-as-judge | Done | OpenAI-compatible client (Ollama works), rubric prompts, strict JSON parsing, calibration set |
+| Eval gate thresholds | Done | `evals/thresholds.json`; the workflow fails below them |
+| Token and cost metrics | Done | Real counts when the provider reports them, documented estimate otherwise |
+| Grafana dashboard and alert rules | Done | Alert rules have promtool tests that run in CI |
+| Dockerfile and image CI | Done | Smoke-tested in CI; pushed to GHCR from `main` |
+| Kubernetes manifests | Done | Validated with kubeconform in CI; see the note under Deployment |
 
----
+What is still weak: the offline embedder matches spelling, not meaning. The judge model is small and noisy. The retrieval thresholds were tuned on the same synthetic set the gate uses. Nothing has been load tested.
 
-## ✅ Eval Checks
+## Eval gate
 
-| Check | Type | Status | What it verifies |
-| :-- | :-: | :-: | :-- |
-| `schema_valid` | Deterministic | ✅ | Exact fields, non-blank strings, `answer_slot` null or text |
-| `labeled_sponsored` | Deterministic | ✅ | Every ad has the label `Sponsored` |
-| `ad_not_in_answer` | Deterministic | ✅ | Ad title, reason and id never appear inside `answer_slot` |
-| `no_banned_category` | Deterministic | ✅ | No ad from a banned category |
-| `expected_category` | Deterministic | ✅ | Top ad matches the prompt's expected category, or no ad when none is expected |
-| Relevance | LLM judge | 📋 | Planned, Phase 3 |
-| Ad-answer separation | LLM judge | 📋 | Planned, Phase 3 |
-| Safety | LLM judge | 📋 | Planned, Phase 3 |
+Two layers run on every pull request.
 
-`ad_not_in_answer` is covered by unit tests with answer text. Over HTTP it passes trivially today because this service leaves `answer_slot` empty. `expected_category` runs against a synthetic catalog and set built for the stub retriever, so it checks the pipeline's wiring, not real-world relevance.
+Deterministic checks run against the packaged service over HTTP:
 
----
+| Check | What it verifies |
+| :-- | :-- |
+| `schema_valid` | Exact fields, non-blank strings, `answer_slot` null or text |
+| `labeled_sponsored` | Every ad has the label `Sponsored` |
+| `ad_not_in_answer` | Ad title, reason and id never appear inside `answer_slot` |
+| `no_banned_category` | No ad from a banned category |
+| `expected_category` | The top ad is in an expected category, or no ad is shown when none is expected |
 
-## 🏗️ Architecture
+`expected_category` runs against a synthetic catalog, so it checks the pipeline's wiring, not real-world relevance. Ten of the cases carry a neutral host answer, which gives `ad_not_in_answer` real text to inspect.
 
-**Request flow**
+The LLM judge scores the top ad of each case from 1 to 5 against one rubric per dimension (relevance, ad-answer separation, safety) in [evals/judge/](evals/judge). A reply that is not exactly `{"score": n, "reason": "..."}` gets one retry and is then a format failure, never a guessed score. Before scoring the eval set, the workflow checks the judge against 36 labeled cases (34 count, two are borderline) and fails if agreement drops below the bar.
 
-```mermaid
-flowchart LR
-    A[Shopper prompt] --> B[Intent and keywords]
-    B --> C[Hybrid search<br/>keyword stub today]
-    C --> D[Policy filter]
-    D --> E[Rank]
-    E --> F[Labeled ad<br/>kept apart from the answer]
-```
+In the workflow the judge is `qwen2.5:1.5b-instruct` served by Ollama on the runner's CPU, so it needs no API key and runs on pull requests from forks. All pass bars are in [evals/thresholds.json](evals/thresholds.json); the workflow only passes a mode flag.
 
-**CI eval gate**
+Measured on this synthetic data:
 
-```mermaid
-flowchart TD
-    A[Prompt, model or code change] --> B[Build and unit tests]
-    A --> C[Start service]
-    C --> D[Run eval set<br/>deterministic checks]
-    D -->|any check fails| E[Job fails]
-    D -->|all pass| F{Judge secret set?}
-    F -->|no| G[Judge skipped]
-    F -->|yes| H[LLM judge<br/>stub today]
-    H --> I[Thresholds<br/>planned]
-```
+| Run | Result |
+| :-- | :-- |
+| Deterministic, hybrid retrieval | 65 of 65 cases pass |
+| Deterministic, keyword baseline | 58 of 58 untagged cases pass; the 7 `hybrid_only` cases fail, as intended |
+| Judge calibration, `qwen2.5:1.5b-instruct`, local run | 26 of 34 agree |
+| Judge calibration, `qwen2.5:0.5b-instruct`, local run | 20 of 34 agree |
+| Judge calibration, `qwen2.5:3b-instruct`, local run | 28 of 34 agree |
 
-More detail, including the search-backend decision (Postgres full-text + pgvector), is in [docs/architecture.md](docs/architecture.md).
+JUDGE_RESULTS_PLACEHOLDER
 
----
+The judge is a weak instrument. It sometimes invents a problem in a clean answer, and it judges only the top ad, so a multi-intent prompt can score well while one of its needs goes unserved. The bars are loose on purpose: they catch a retriever or rubric that breaks outright, not small drifts. Treat the calibration agreement as the honest measure of how much to trust the scores.
 
-## 🧰 Tech Stack
+## Run it
 
-| Layer | Choice | Status |
-| :-- | :-- | :-: |
-| Language / runtime | Java 21 | ✅ |
-| Framework | Spring Boot 3.5 | ✅ |
-| Build | Maven (wrapper included) | ✅ |
-| Tests | JUnit 5, Spring MockMvc | ✅ |
-| CI | GitHub Actions | ✅ |
-| Metrics | Micrometer, Prometheus | ✅ |
-| Dashboards | Grafana (provisioned) | 🚧 |
-| Search backend | Postgres full-text + pgvector | 🚧 |
-| Cache | Redis | 📋 |
-| Deploy | Kubernetes | 📋 |
-
----
-
-## 🚀 Quickstart
-
-You need JDK 21 for the Maven wrapper and Docker for the optional stack.
+You need JDK 21 (the Maven wrapper is included) and, for the optional pieces, Docker.
 
 ```bash
-cp .env.example .env            # only needed for docker compose
-./mvnw verify                   # build + all tests (includes the full eval set in-process)
-./mvnw spring-boot:run          # start the service on :8080
+./mvnw verify                   # build and all tests; Docker is needed for the Postgres and Redis ones
+./mvnw spring-boot:run          # keyword-only mode on :8080, no dependencies
+```
+
+Hybrid retrieval and the cache need Postgres and Redis:
+
+```bash
+cp .env.example .env            # set POSTGRES_PASSWORD, then reuse it as CHATADS_DB_PASSWORD
+docker compose up -d redis postgres
+set -a; source .env; set +a
+export CHATADS_DB_URL=jdbc:postgresql://localhost:5432/chatads CHATADS_CACHE_ENABLED=true
+./mvnw spring-boot:run
 ```
 
 Ask for an ad:
@@ -173,72 +135,90 @@ curl -s -X POST localhost:8080/v1/ads/contextual \
   -d '{"prompt":"noise cancelling headphones for my commute"}'
 ```
 
-Run the eval gate against the running service:
+Run the deterministic gate against the running service:
 
 ```bash
 ./mvnw -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner
 ```
 
-Start Redis, Postgres, Prometheus and Grafana (Grafana on http://localhost:3000, Prometheus on http://localhost:9090):
+Run the judge locally with Ollama (no account or key; models are downloaded on first pull):
 
 ```bash
-docker compose up -d
+ollama pull qwen2.5:1.5b-instruct
+export LLM_JUDGE_BASE_URL=http://localhost:11434/v1 LLM_JUDGE_MODEL=qwen2.5:1.5b-instruct
+./mvnw -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode all"
 ```
 
-Configuration is by environment variable; see [.env.example](.env.example). The LLM judge key (`LLM_JUDGE_API_KEY`) is optional and is never committed.
+Any OpenAI-compatible server works the same way: set the base URL, the model and `LLM_JUDGE_API_KEY`. With none of the three set, the judge step prints SKIPPED.
 
----
+To use a real embedding model, for example Ollama's `all-minilm`:
 
-## 🔭 Observability
+```bash
+ollama pull all-minilm
+export CHATADS_EMBEDDING_PROVIDER=ollama CHATADS_EMBEDDING_BASE_URL=http://localhost:11434 \
+       CHATADS_EMBEDDING_MODEL=all-minilm CHATADS_EMBEDDING_DIMENSIONS=384 CHATADS_MIN_SIMILARITY=0.4
+```
 
-- **Latency:** the built-in `http.server.requests` timer, with a percentile histogram so Prometheus can compute p95.
-- **Counters:** `chatads_requests_total`, `chatads_sponsored_served_total`, `chatads_fallback_total`, `chatads_policy_filtered_total`.
-- **Token cost:** `chatads_llm_tokens_total` is registered but stays at zero until a model is called.
-- **Dashboard:** `observability/grafana/dashboards/overview.json` has three panels: **p95 latency**, **Token cost**, **Fallback rate**. No numbers are published here because none have been measured.
+The catalog table is rebuilt automatically when the vector size changes. `CHATADS_MIN_SIMILARITY` has to be tuned per model; 0.4 here is a rough starting point, not a tuned value. Every setting is listed in [.env.example](.env.example).
 
----
+Prometheus (http://localhost:9090) and Grafana (http://localhost:3000) start with `docker compose up -d prometheus grafana` and scrape the service on the host.
 
-## 🗺️ Roadmap
+## Observability
 
-| Phase | Scope | Status | Milestone |
-| :-- | :-- | :-: | :-- |
-| 1 | Scaffold + deterministic checks | ✅ | [Phase 1](https://github.com/dakshshukla10/chat-ads-eval/milestone/1) |
-| 2 | Hybrid retrieval + Redis cache | 🚧 | [Phase 2](https://github.com/dakshshukla10/chat-ads-eval/milestone/2) |
-| 3 | LLM-as-judge + eval-gate thresholds | 📋 | [Phase 3](https://github.com/dakshshukla10/chat-ads-eval/milestone/3) |
-| 4 | Metrics dashboards (latency, token cost, fallback) | 📋 | [Phase 4](https://github.com/dakshshukla10/chat-ads-eval/milestone/4) |
-| 5 | Kubernetes deploy | 📋 | [Phase 5](https://github.com/dakshshukla10/chat-ads-eval/milestone/5) |
+The service exports these on `/actuator/prometheus`:
 
-Phase 2 is started: the Redis and Postgres+pgvector containers are provisioned, and its issues are open. Retrieval and caching are not wired yet.
+| Metric | Meaning |
+| :-- | :-- |
+| `http_server_requests_seconds_*` | Latency histogram for p50, p95 and p99 |
+| `chatads_requests_total`, `chatads_sponsored_served_total` | Requests and ads returned |
+| `chatads_policy_filtered_total` | Candidates the policy filter removed |
+| `chatads_fallback_total{reason}` | `no_match`, `policy_filtered`, `backend_error`, `cache_error` |
+| `chatads_cache_total{result}` | `hit`, `miss`, `error` |
+| `chatads_llm_tokens_total{direction,operation,model,source}` | Tokens; `source` is `provider` or `estimate` |
+| `chatads_llm_cost_usd_total{operation,model}` | Estimated dollars from [llm-prices.json](src/main/resources/llm-prices.json) |
 
----
+The token and cost series come from real model calls, which with the offline embedder means none, so those two panels stay empty by default. With Ollama's `all-minilm` as the embedder, the token panel shows the counts the server reports. Cost stays at zero for any model that is not in the price table, which includes every local model. The price table lists two hosted models, copied from their public price pages; check them before relying on a dollar figure.
 
-## 📁 Project Structure
+The dashboard in `observability/grafana/dashboards/overview.json` has latency percentiles, request and ad rates, cache hit ratio, fallbacks by reason, the share of requests with no ad, policy-filtered candidates, tokens and cost. `observability/alerts.yml` defines six alert rules (service down, p95 latency, 5xx share, backend fallback, cache errors, high no-ad share). Their thresholds are starting values, not measured ones. The rules have promtool unit tests, and a JUnit test checks that every metric named in the dashboard and the rules is one the service exports.
+
+## Deployment
+
+The multi-stage `Dockerfile` builds a non-root image. CI builds it, starts it with a read-only filesystem and a 512 MB limit, waits for the health check and checks that a request returns a `Sponsored` item. On pushes to `main` it is published to `ghcr.io/dakshshukla10/chat-ads-eval` using the workflow's own token.
+
+`k8s/` holds a namespace, ConfigMap, Deployment, Service, a secret example and dev-only Postgres and Redis. See [k8s/README.md](k8s/README.md). CI validates the manifests with kubeconform against Kubernetes 1.30 schemas. The manifests were also applied once to a throwaway local kind cluster, where both app replicas and the dev dependencies became ready; that check is not part of CI and no real cluster has run them.
+
+## Layout
 
 ```text
-chat-ads-eval/
-├── src/main/java/dev/chatads/
-│   ├── api/            # controller, service, DTOs
-│   ├── retrieval/      # catalog, tokenizer, keyword retriever (stub)
-│   ├── policy/         # banned-category filter
-│   ├── ranking/        # ordering and top-N
-│   ├── metrics/        # Micrometer counters
-│   └── eval/           # deterministic checks, case evaluator, runner, judge stub
-├── src/main/resources/ # catalog.json, policy/banned-categories.txt, application.yml
-├── src/test/java/      # JUnit 5 tests
-├── evals/              # prompts.jsonl and eval docs
-├── observability/      # Prometheus config, Grafana provisioning and dashboard
-├── docs/               # architecture.md, banner
-├── .github/workflows/  # ci.yml, eval-gate.yml
-├── docker-compose.yml
-└── .env.example
+src/main/java/dev/chatads/
+  api/          controller, service, DTOs
+  retrieval/    catalog, hybrid and keyword retrievers, Postgres index, cache, fallback
+  embedding/    hashing and HTTP embedders, token metering
+  policy/       banned-category filter
+  ranking/      ordering and top-N
+  metrics/      Micrometer counters and token/cost metrics
+  llm/          price table and token usage
+  eval/         deterministic checks, runner, thresholds, calibration
+  eval/judge/   judge client, rubric loading, strict verdict parser
+src/main/resources/   catalog.json, banned-categories.txt, llm-prices.json, application.yml
+src/test/java/        unit tests and Testcontainers tests for Postgres and Redis
+evals/                prompts.jsonl, thresholds.json, judge/ (rubrics and calibration set)
+observability/        Prometheus config, alert rules and tests, Grafana provisioning and dashboard
+k8s/                  Kubernetes manifests
+docs/                 architecture notes
+.github/workflows/    ci.yml, eval-gate.yml
 ```
 
----
+## Roadmap
 
-## 📄 License
+| Phase | Scope | Status |
+| :-- | :-- | :-: |
+| 1 | Scaffold and deterministic checks | Done |
+| 2 | Hybrid retrieval and Redis cache | Done |
+| 3 | LLM-as-judge and eval-gate thresholds | Done |
+| 4 | Metrics dashboards (latency, token cost, fallback) | Done |
+| 5 | Container image and Kubernetes manifests | Done |
+
+## License
 
 [MIT](LICENSE) © Daksh Shukla
-
----
-
-<p align="center"><sub>Built with ❤️ by <a href="https://github.com/dakshshukla10">Daksh Shukla</a></sub></p>

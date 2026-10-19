@@ -9,7 +9,7 @@ public class Ranker {
 
     public List<ScoredProduct> rank(List<ScoredProduct> candidates, int max) {
         return candidates.stream()
-                .sorted(Comparator.comparingInt(ScoredProduct::score).reversed()
+                .sorted(Comparator.comparingDouble(ScoredProduct::score).reversed()
                         .thenComparing(c -> c.product().id()))
                 .limit(max)
                 .toList();

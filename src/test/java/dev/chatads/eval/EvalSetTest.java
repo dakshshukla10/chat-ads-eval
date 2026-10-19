@@ -2,23 +2,21 @@ package dev.chatads.eval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.chatads.policy.PolicyFilter;
-import dev.chatads.retrieval.Catalog;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Runs the whole eval set in-process, so a bad dataset edit fails the normal build too. */
-@SpringBootTest
+/**
+ * The eval set on the in-memory keyword retriever (no database), which is also the fallback path.
+ * Cases tagged {@code hybrid_only} are the ones keyword matching cannot answer, and they must fail here;
+ * if one starts passing, the tag is stale.
+ */
+@SpringBootTest(properties = "chatads.db.url=")
 @AutoConfigureMockMvc
 class EvalSetTest {
 
@@ -26,22 +24,28 @@ class EvalSetTest {
     MockMvc mvc;
 
     @Test
-    void everyCasePassesEveryCheck() throws Exception {
-        List<EvalCase> cases = EvalSet.load(Path.of("evals/prompts.jsonl"));
-        assertTrue(cases.size() >= 30, "eval set should have about 30 prompts");
-        CaseEvaluator evaluator = new CaseEvaluator(Catalog.loadDefault(), PolicyFilter.loadBannedCategories());
-        ObjectMapper mapper = new ObjectMapper();
+    void everyCaseThatKeywordMatchingCanAnswerPasses() throws Exception {
+        List<EvalCase> cases = EvalSetRunner.load();
+        assertTrue(cases.size() >= 30, "eval set should have at least 30 prompts");
+        Map<String, String> failed = EvalSetRunner.failures(mvc, cases);
 
-        for (EvalCase c : cases) {
-            String body = mvc.perform(post("/v1/ads/contextual")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(mapper.writeValueAsString(mapper.createObjectNode().put("prompt", c.prompt()))))
-                    .andReturn().getResponse().getContentAsString();
-            String failures = evaluator.evaluate(c, body).stream()
-                    .filter(r -> !r.passed())
-                    .map(r -> r.name() + ": " + r.detail())
-                    .collect(Collectors.joining("; "));
-            assertEquals("", failures, c.id() + " (" + c.prompt() + ")");
-        }
+        List<String> unexpected = cases.stream()
+                .filter(c -> !c.tags().contains("hybrid_only"))
+                .map(EvalCase::id)
+                .filter(failed::containsKey)
+                .toList();
+        assertEquals(List.of(), unexpected, () -> "keyword retriever failed: " + failed);
+    }
+
+    @Test
+    void hybridOnlyCasesReallyFailOnKeywordMatching() throws Exception {
+        List<EvalCase> cases = EvalSetRunner.load();
+        Map<String, String> failed = EvalSetRunner.failures(mvc, cases);
+        List<String> staleTags = cases.stream()
+                .filter(c -> c.tags().contains("hybrid_only"))
+                .map(EvalCase::id)
+                .filter(id -> !failed.containsKey(id))
+                .toList();
+        assertEquals(List.of(), staleTags, "these cases are tagged hybrid_only but the keyword retriever passes them");
     }
 }

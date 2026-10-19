@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdController {
 
     static final int MAX_PROMPT_CHARS = 2000;
+    static final int MAX_ANSWER_CHARS = 8000;
 
     private final AdService service;
 
@@ -28,6 +29,10 @@ public class AdController {
         if (prompt.length() > MAX_PROMPT_CHARS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "prompt too long");
         }
-        return service.contextual(prompt);
+        String answer = request.assistantAnswer();
+        if (answer != null && answer.length() > MAX_ANSWER_CHARS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "assistant_answer too long");
+        }
+        return service.contextual(prompt, answer);
     }
 }

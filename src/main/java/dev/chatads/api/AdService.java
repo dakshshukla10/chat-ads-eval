@@ -1,6 +1,7 @@
 package dev.chatads.api;
 
 import dev.chatads.metrics.AdMetrics;
+import dev.chatads.metrics.FallbackReason;
 import dev.chatads.policy.PolicyFilter;
 import dev.chatads.ranking.Ranker;
 import dev.chatads.retrieval.Retriever;
@@ -27,7 +28,8 @@ public class AdService {
         this.metrics = metrics;
     }
 
-    public AdResponse contextual(String prompt) {
+    /** The assistant's own answer, if the host sent one, goes back in {@code answer_slot} unchanged. */
+    public AdResponse contextual(String prompt, String assistantAnswer) {
         metrics.request();
         List<ScoredProduct> candidates = retriever.retrieve(prompt, CANDIDATES);
         List<ScoredProduct> allowed = policy.apply(candidates);
@@ -35,7 +37,7 @@ public class AdService {
         List<ScoredProduct> top = ranker.rank(allowed, MAX_ADS);
 
         if (top.isEmpty()) {
-            metrics.fallback();
+            metrics.fallback(candidates.isEmpty() ? FallbackReason.NO_MATCH : FallbackReason.POLICY_FILTERED);
         }
         metrics.served(top.size());
 
@@ -44,8 +46,16 @@ public class AdService {
                         c.product().id(),
                         c.product().title(),
                         SponsoredItem.LABEL,
-                        "Matches your request: " + String.join(", ", c.matchedTerms())))
+                        reason(c)))
                 .toList();
-        return new AdResponse(null, items);
+        return new AdResponse(assistantAnswer, items);
+    }
+
+    /** Vector-only matches have no shared words to quote, so the reason names the category. */
+    private static String reason(ScoredProduct c) {
+        if (c.matchedTerms().isEmpty()) {
+            return "Similar to your request, in " + c.product().category().replace('-', ' ');
+        }
+        return "Matches your request: " + String.join(", ", c.matchedTerms());
     }
 }

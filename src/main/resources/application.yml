@@ -20,6 +20,13 @@ chatads:
   retrieval:
     candidates: 20
     rrf-k: 60
+    # A vector hit counts only at or above this cosine similarity. Tuned on the synthetic eval set
+    # for the hash embedder; a real embedding model needs its own value.
+    min-similarity: ${CHATADS_MIN_SIMILARITY:0.25}
+    # ...and must also reach this share of the best vector hit's similarity.
+    vector-relative-cutoff: 0.5
+    # After a Postgres or embedding failure, answer from the keyword retriever for this long.
+    fallback-cooldown: PT5S
   embedding:
     # hash = deterministic offline embedder (default). openai = any OpenAI-compatible /embeddings API. ollama = local Ollama.
     provider: ${CHATADS_EMBEDDING_PROVIDER:hash}

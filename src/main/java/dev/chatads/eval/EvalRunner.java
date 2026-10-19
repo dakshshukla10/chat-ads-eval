@@ -60,6 +60,14 @@ public final class EvalRunner {
         System.exit(runDeterministic(baseUrl, Path.of(dataset), Path.of(report)) ? 0 : 1);
     }
 
+    static ObjectNode requestBody(ObjectMapper mapper, EvalCase c) {
+        ObjectNode body = mapper.createObjectNode().put("prompt", c.prompt());
+        if (c.assistantAnswer() != null) {
+            body.put("assistant_answer", c.assistantAnswer());
+        }
+        return body;
+    }
+
     static boolean runDeterministic(String baseUrl, Path dataset, Path reportFile) throws Exception {
         List<EvalCase> cases = EvalSet.load(dataset);
         CaseEvaluator evaluator = new CaseEvaluator(Catalog.loadDefault(), PolicyFilter.loadBannedCategories());
@@ -76,7 +84,7 @@ public final class EvalRunner {
                 HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl + "/v1/ads/contextual"))
                         .timeout(Duration.ofSeconds(10))
                         .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(mapper.createObjectNode().put("prompt", c.prompt()))))
+                        .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(requestBody(mapper, c))))
                         .build();
                 HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
                 results = resp.statusCode() == 200

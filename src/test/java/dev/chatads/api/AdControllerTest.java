@@ -48,6 +48,14 @@ class AdControllerTest {
     }
 
     @Test
+    void assistantAnswerComesBackUntouchedAndSeparateFromTheAd() throws Exception {
+        call("{\"prompt\":\"running shoes for a marathon\",\"assistant_answer\":\"Look for a light shoe with a wide toe box.\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answer_slot").value("Look for a light shoe with a wide toe box."))
+                .andExpect(jsonPath("$.sponsored[0].label").value("Sponsored"));
+    }
+
+    @Test
     void blankOrMissingPromptIs400() throws Exception {
         call("{\"prompt\":\"  \"}").andExpect(status().isBadRequest());
         call("{}").andExpect(status().isBadRequest());

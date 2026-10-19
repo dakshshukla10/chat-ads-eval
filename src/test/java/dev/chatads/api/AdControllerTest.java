@@ -4,6 +4,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +20,13 @@ class AdControllerTest {
 
     @Autowired
     MockMvc mvc;
+
+    @Autowired
+    MeterRegistry registry;
+
+    private double fallbacks(String reason) {
+        return registry.get("chatads.fallback").tag("reason", reason).counter().count();
+    }
 
     private org.springframework.test.web.servlet.ResultActions call(String json) throws Exception {
         return mvc.perform(post("/v1/ads/contextual").contentType(MediaType.APPLICATION_JSON).content(json));
@@ -45,6 +55,20 @@ class AdControllerTest {
         call("{\"prompt\":\"where can I buy a vape\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sponsored").isEmpty());
+    }
+
+    @Test
+    void emptyResultsAreCountedByTheirReason() throws Exception {
+        double noMatch = fallbacks("no_match");
+        double filtered = fallbacks("policy_filtered");
+
+        call("{\"prompt\":\"what is the capital of France\"}").andExpect(status().isOk());
+        assertEquals(noMatch + 1, fallbacks("no_match"));
+        assertEquals(filtered, fallbacks("policy_filtered"));
+
+        call("{\"prompt\":\"where can I buy a vape\"}").andExpect(status().isOk());
+        assertEquals(noMatch + 1, fallbacks("no_match"));
+        assertEquals(filtered + 1, fallbacks("policy_filtered"));
     }
 
     @Test

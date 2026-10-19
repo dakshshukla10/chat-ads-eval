@@ -1,0 +1,77 @@
+# Run with: promtool test rules observability/alerts.test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{uri="/v1/ads/contextual",le="0.1"}'
+        values: '0+10x30'
+      - series: 'http_server_requests_seconds_bucket{uri="/v1/ads/contextual",le="1.0"}'
+        values: '0+100x30'
+      - series: 'http_server_requests_seconds_bucket{uri="/v1/ads/contextual",le="+Inf"}'
+        values: '0+100x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: ChatAdsHighLatencyP95
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: p95 latency of /v1/ads/contextual is above 500 ms
+              description: p95 has been 950ms for 10 minutes.
+      - eval_time: 5m
+        alertname: ChatAdsHighLatencyP95
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'chatads_fallback_total{reason="backend_error"}'
+        values: '0+1x20'
+      - series: 'chatads_requests_total'
+        values: '0+10x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ChatAdsBackendFallback
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: Hybrid retrieval is failing and the keyword fallback is answering
+              description: Postgres or the embedding provider has been failing for 5 minutes. Ads are still served, with weaker matching.
+
+  - interval: 1m
+    input_series:
+      - series: 'chatads_fallback_total{reason="no_match"}'
+        values: '0+8x40'
+      - series: 'chatads_fallback_total{reason="policy_filtered"}'
+        values: '0+1x40'
+      - series: 'chatads_requests_total'
+        values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ChatAdsHighNoAdRate
+        exp_alerts:
+          - exp_labels:
+              severity: warn
+            exp_annotations:
+              summary: Most requests return no ad
+              description: 90% of requests returned no ad over 15 minutes. Check retrieval and the banned-category list.
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="chat-ads-eval",instance="localhost:8080"}'
+        values: '1 1 1 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: ChatAdsDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              job: chat-ads-eval
+              instance: localhost:8080
+            exp_annotations:
+              summary: The ad service is not being scraped
+              description: Prometheus has not reached localhost:8080 for 2 minutes.

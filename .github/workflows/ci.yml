@@ -93,3 +93,14 @@ jobs:
             -strict -summary -kubernetes-version 1.30.0 \
             /k8s/namespace.yaml /k8s/configmap.yaml /k8s/secret.example.yaml \
             /k8s/deployment.yaml /k8s/service.yaml /k8s/dev-deps.yaml
+
+  observability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Prometheus config and alert rules, run the rule tests
+        run: |
+          docker run --rm -v "$PWD/observability:/obs:ro" --entrypoint promtool prom/prometheus:v2.55.1 check rules /obs/alerts.yml
+          docker run --rm -v "$PWD/observability:/obs:ro" --entrypoint promtool prom/prometheus:v2.55.1 test rules /obs/alerts.test.yml
+      - name: Check the dashboard is valid JSON
+        run: jq empty observability/grafana/dashboards/overview.json

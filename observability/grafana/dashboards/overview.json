@@ -2,7 +2,7 @@
   "uid": "chat-ads-eval-overview",
   "title": "Chat Ads Eval - Overview",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "time": {
     "from": "now-1h",
@@ -16,87 +16,341 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "p95 latency",
-      "description": "95th percentile of POST /v1/ads/contextual latency. Empty until the service receives traffic.",
+      "title": "Latency p50, p95, p99",
+      "description": "Latency of POST /v1/ads/contextual from the http.server.requests histogram. Empty until the service receives traffic.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
         "y": 0
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s"
+          "unit": "s",
+          "custom": {},
+          "min": 0
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
           "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v1/ads/contextual\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v1/ads/contextual\"}[5m])))",
           "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v1/ads/contextual\"}[5m])))",
+          "legendFormat": "p99"
         }
       ]
     },
     {
       "id": 2,
       "type": "timeseries",
-      "title": "Token cost",
-      "description": "LLM tokens per hour by direction. Stays at zero until an LLM call exists (planned, Phase 3/4); dollar cost needs a price table that is not defined yet.",
+      "title": "Requests and ads served",
+      "description": "Contextual ad requests per second, and sponsored items returned per second.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 12,
         "y": 0
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "reqps",
+          "custom": {},
+          "min": 0
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (direction) (increase(chatads_llm_tokens_total[1h]))",
-          "legendFormat": "{{direction}}"
+          "expr": "sum(rate(chatads_requests_total[5m]))",
+          "legendFormat": "requests"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(chatads_sponsored_served_total[5m]))",
+          "legendFormat": "ads served"
         }
       ]
     },
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Fallback rate",
-      "description": "Share of requests answered with no ad.",
+      "title": "Cache hit ratio",
+      "description": "Share of candidate-cache lookups that hit. Empty when the Redis cache is switched off (CHATADS_CACHE_ENABLED=false).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 18,
         "y": 0
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "custom": {},
+          "min": 0
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(chatads_fallback_total[5m])) / clamp_min(sum(rate(chatads_requests_total[5m])), 1e-9)",
-          "legendFormat": "fallback"
+          "expr": "sum(rate(chatads_cache_total{result=\"hit\"}[5m])) / clamp_min(sum(rate(chatads_cache_total{result=~\"hit|miss\"}[5m])), 1e-9)",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Fallback rate by reason",
+      "description": "Requests per second that left the normal path, split by reason. no_match and policy_filtered returned no ad; backend_error was answered by the in-memory keyword retriever; cache_error was served without Redis.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "fillOpacity": 30
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (rate(chatads_fallback_total[5m]))",
+          "legendFormat": "{{reason}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Share of requests with no ad",
+      "description": "Requests answered with an empty sponsored list (no_match plus policy_filtered), as a share of all requests.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {},
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(chatads_fallback_total{reason=~\"no_match|policy_filtered\"}[5m])) / clamp_min(sum(rate(chatads_requests_total[5m])), 1e-9)",
+          "legendFormat": "no ad"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Policy-filtered candidates",
+      "description": "Retrieved candidates the policy filter removed, per 5 minutes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {},
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(chatads_policy_filtered_total[5m]))",
+          "legendFormat": "filtered"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Token cost: tokens",
+      "description": "LLM tokens per hour by direction, model and source. source=provider is the count the model server reported; source=estimate is four characters per token. Stays at zero with the offline hash embedder because no model is called.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {},
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (direction, model, source) (increase(chatads_llm_tokens_total[1h]))",
+          "legendFormat": "{{direction}} {{model}} ({{source}})"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Token cost: estimated dollars",
+      "description": "Estimated spend per hour from the price table in llm-prices.json. Models that are not in the table count as zero.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {},
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (model) (increase(chatads_llm_cost_usd_total[1h]))",
+          "legendFormat": "{{model}}"
         }
       ]
     }

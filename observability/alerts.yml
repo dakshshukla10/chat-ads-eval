@@ -1,0 +1,65 @@
+# Alert rules for the contextual ad service. Thresholds are starting values to adjust once there is
+# real traffic to compare against; none of them was derived from measured production data.
+groups:
+  - name: chat-ads-eval
+    rules:
+      - alert: ChatAdsDown
+        expr: up{job="chat-ads-eval"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: The ad service is not being scraped
+          description: Prometheus has not reached {{ $labels.instance }} for 2 minutes.
+
+      - alert: ChatAdsHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{uri="/v1/ads/contextual"}[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: p95 latency of /v1/ads/contextual is above 500 ms
+          description: p95 has been {{ $value | humanizeDuration }} for 10 minutes.
+
+      - alert: ChatAdsServerErrors
+        expr: |
+          sum(rate(http_server_requests_seconds_count{uri="/v1/ads/contextual",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_server_requests_seconds_count{uri="/v1/ads/contextual"}[5m])), 1e-9) > 0.02
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: More than 2% of ad requests fail with a 5xx
+          description: The 5xx share has been {{ $value | humanizePercentage }} for 5 minutes.
+
+      - alert: ChatAdsBackendFallback
+        expr: sum(rate(chatads_fallback_total{reason="backend_error"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: Hybrid retrieval is failing and the keyword fallback is answering
+          description: Postgres or the embedding provider has been failing for 5 minutes. Ads are still served, with weaker matching.
+
+      - alert: ChatAdsCacheErrors
+        expr: sum(rate(chatads_cache_total{result="error"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: Redis cache calls are failing
+          description: Requests are being served without the cache, so latency and database load will rise.
+
+      - alert: ChatAdsHighNoAdRate
+        expr: |
+          (sum(rate(chatads_fallback_total{reason=~"no_match|policy_filtered"}[15m]))
+            / clamp_min(sum(rate(chatads_requests_total[15m])), 1e-9)) > 0.7
+          and sum(rate(chatads_requests_total[15m])) > 0.05
+        for: 15m
+        labels:
+          severity: warn
+        annotations:
+          summary: Most requests return no ad
+          description: '{{ $value | humanizePercentage }} of requests returned no ad over 15 minutes. Check retrieval and the banned-category list.'

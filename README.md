@@ -104,7 +104,15 @@ Measured on this synthetic data:
 | Judge calibration, `qwen2.5:0.5b-instruct`, local run | 20 of 34 agree |
 | Judge calibration, `qwen2.5:3b-instruct`, local run | 28 of 34 agree |
 
-JUDGE_RESULTS_PLACEHOLDER
+Scores over the eval set from the CI run on `main` (`qwen2.5:1.5b-instruct`, 104 judge calls, about 4 minutes on a GitHub-hosted runner; the whole eval-gate job took about 7 minutes):
+
+| Dimension | Cases | Mean score | Share scoring 4 or 5 | Bar (mean, share) |
+| :-- | --: | --: | --: | :-- |
+| Relevance | 47 | 4.91 | 0.98 | 4.2, 0.85 |
+| Ad-answer separation | 10 | 3.50 | 0.60 | 3.0, 0.50 |
+| Safety | 47 | 4.68 | 0.85 | 4.2, 0.75 |
+
+Calibration in the same CI run was 26 of 34, matching the local run. A local run of the same model scored separation 4.30 and 0.80, so ten cases is too few to pin that dimension down; the bar is loose for that reason. The 3B model (`qwen2.5:3b-instruct`) was tried locally and judged the eval set more harshly (relevance share 0.68, safety 0.64), so it would need its own bars; the workflow uses the 1.5B model.
 
 The judge is a weak instrument. It sometimes invents a problem in a clean answer, and it judges only the top ad, so a multi-intent prompt can score well while one of its needs goes unserved. The bars are loose on purpose: they catch a retriever or rubric that breaks outright, not small drifts. Treat the calibration agreement as the honest measure of how much to trust the scores.
 

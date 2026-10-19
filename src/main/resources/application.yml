@@ -1,11 +1,47 @@
 spring:
   application:
     name: chat-ads-eval
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 250ms
+      connect-timeout: 250ms
 
 server:
   port: ${PORT:8080}
 
+chatads:
+  # Postgres (full-text + pgvector). Leave the url empty to run on the in-memory keyword retriever only.
+  db:
+    url: ${CHATADS_DB_URL:}
+    user: ${CHATADS_DB_USER:chatads}
+    password: ${CHATADS_DB_PASSWORD:}
+  retrieval:
+    candidates: 20
+    rrf-k: 60
+  embedding:
+    # hash = deterministic offline embedder (default). openai = any OpenAI-compatible /embeddings API. ollama = local Ollama.
+    provider: ${CHATADS_EMBEDDING_PROVIDER:hash}
+    dimensions: ${CHATADS_EMBEDDING_DIMENSIONS:256}
+    base-url: ${CHATADS_EMBEDDING_BASE_URL:}
+    model: ${CHATADS_EMBEDDING_MODEL:}
+    api-key: ${CHATADS_EMBEDDING_API_KEY:}
+  cache:
+    enabled: ${CHATADS_CACHE_ENABLED:false}
+    ttl: ${CHATADS_CACHE_TTL:PT10M}
+
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    # Redis and Postgres are optional paths with a fallback, so they must not turn the pod unready.
+    redis:
+      enabled: false
+    db:
+      enabled: false
   endpoints:
     web:
       exposure:

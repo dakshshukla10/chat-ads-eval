@@ -10,6 +10,7 @@ import dev.chatads.llm.PriceTable;
 import dev.chatads.metrics.LlmUsageMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import dev.chatads.metrics.AdMetrics;
+import dev.chatads.retrieval.CachingRetriever;
 import dev.chatads.retrieval.Catalog;
 import dev.chatads.retrieval.HybridRetriever;
 import dev.chatads.retrieval.KeywordRetriever;
@@ -26,6 +27,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -110,16 +112,21 @@ public class RetrievalConfig {
             ObjectProvider<PostgresProductIndex> index,
             Embedder embedder,
             AdMetrics metrics,
+            Catalog catalog,
+            StringRedisTemplate redis,
             @Value("${chatads.retrieval.candidates}") int candidates,
             @Value("${chatads.retrieval.rrf-k}") int rrfK,
             @Value("${chatads.retrieval.min-similarity}") double minSimilarity,
             @Value("${chatads.retrieval.vector-relative-cutoff}") double relativeCutoff,
-            @Value("${chatads.retrieval.fallback-cooldown}") Duration cooldown) {
+            @Value("${chatads.retrieval.fallback-cooldown}") Duration cooldown,
+            @Value("${chatads.cache.enabled}") boolean cacheEnabled,
+            @Value("${chatads.cache.ttl}") Duration cacheTtl) {
         PostgresProductIndex postgres = index.getIfAvailable();
-        if (postgres == null) {
-            return keyword;
+        Retriever primary = postgres == null ? keyword
+                : new HybridRetriever(postgres, embedder, candidates, rrfK, minSimilarity, relativeCutoff);
+        if (cacheEnabled) {
+            primary = new CachingRetriever(primary, catalog, redis, embedder.id(), cacheTtl, metrics);
         }
-        Retriever hybrid = new HybridRetriever(postgres, embedder, candidates, rrfK, minSimilarity, relativeCutoff);
-        return new ResilientRetriever(hybrid, keyword, metrics, cooldown);
+        return postgres == null ? primary : new ResilientRetriever(primary, keyword, metrics, cooldown);
     }
 }

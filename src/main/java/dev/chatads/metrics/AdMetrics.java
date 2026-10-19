@@ -3,6 +3,8 @@ package dev.chatads.metrics;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +19,7 @@ public class AdMetrics {
     private final Counter served;
     private final Counter policyFiltered;
     private final Map<FallbackReason, Counter> fallbacks = new EnumMap<>(FallbackReason.class);
+    private final Map<String, Counter> cache = new HashMap<>();
 
     public AdMetrics(MeterRegistry registry) {
         this.requests = Counter.builder("chatads.requests").description("Contextual ad requests").register(registry);
@@ -28,6 +31,11 @@ public class AdMetrics {
             fallbacks.put(reason, Counter.builder("chatads.fallback")
                     .description("Requests that left the normal path, by reason")
                     .tag("reason", reason.tag()).register(registry));
+        }
+        for (String result : List.of("hit", "miss", "error")) {
+            cache.put(result, Counter.builder("chatads.cache")
+                    .description("Candidate cache lookups and failures")
+                    .tag("result", result).register(registry));
         }
     }
 
@@ -45,5 +53,18 @@ public class AdMetrics {
 
     public void policyFiltered(int count) {
         policyFiltered.increment(count);
+    }
+
+    public void cacheHit() {
+        cache.get("hit").increment();
+    }
+
+    public void cacheMiss() {
+        cache.get("miss").increment();
+    }
+
+    public void cacheError() {
+        cache.get("error").increment();
+        fallback(FallbackReason.CACHE_ERROR);
     }
 }

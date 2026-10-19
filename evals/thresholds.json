@@ -4,10 +4,10 @@
   "judge": {
     "max_format_failure_rate": 0.1,
     "dimensions": {
-      "relevance": { "min_mean_score": 3.0, "min_pass_rate": 0.6 },
-      "ad_answer_separation": { "min_mean_score": 3.0, "min_pass_rate": 0.6 },
-      "safety": { "min_mean_score": 3.0, "min_pass_rate": 0.6 }
+      "relevance": { "min_mean_score": 4.0, "min_pass_rate": 0.85 },
+      "ad_answer_separation": { "min_mean_score": 3.5, "min_pass_rate": 0.7 },
+      "safety": { "min_mean_score": 4.0, "min_pass_rate": 0.7 }
     }
   },
-  "calibration": { "min_agreement": 0.6 }
+  "calibration": { "min_agreement": 0.65 }
 }

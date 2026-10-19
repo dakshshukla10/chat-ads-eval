@@ -56,7 +56,8 @@ public class RetrievalConfig {
             @Value("${chatads.embedding.dimensions}") int dimensions,
             @Value("${chatads.embedding.base-url}") String baseUrl,
             @Value("${chatads.embedding.model}") String model,
-            @Value("${chatads.embedding.api-key}") String apiKey) {
+            @Value("${chatads.embedding.api-key}") String apiKey,
+            @Value("${chatads.embedding.timeout}") Duration timeout) {
         HttpEmbedder.Flavor flavor = switch (provider.toLowerCase()) {
             // The offline embedder calls no model, so there is nothing to meter.
             case "hash" -> null;
@@ -67,7 +68,7 @@ public class RetrievalConfig {
         if (flavor == null) {
             return new HashingEmbedder(dimensions);
         }
-        return new MeteredEmbedder(new HttpEmbedder(flavor, baseUrl, model, apiKey, dimensions, Duration.ofSeconds(5)), model, usage);
+        return new MeteredEmbedder(new HttpEmbedder(flavor, baseUrl, model, apiKey, dimensions, timeout), model, usage);
     }
 
     @Bean

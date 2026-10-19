@@ -34,6 +34,8 @@ chatads:
     base-url: ${CHATADS_EMBEDDING_BASE_URL:}
     model: ${CHATADS_EMBEDDING_MODEL:}
     api-key: ${CHATADS_EMBEDDING_API_KEY:}
+    # A local model that is not loaded yet can take several seconds on its first call.
+    timeout: ${CHATADS_EMBEDDING_TIMEOUT:PT10S}
   cache:
     enabled: ${CHATADS_CACHE_ENABLED:false}
     ttl: ${CHATADS_CACHE_TTL:PT10M}

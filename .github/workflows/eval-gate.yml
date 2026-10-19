@@ -9,12 +9,36 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   eval:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: chatads
+          POSTGRES_USER: chatads
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U chatads -d chatads"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 12
     env:
-      # true only when the repo has the LLM_JUDGE_API_KEY secret (never on forks).
-      HAS_JUDGE_KEY: ${{ secrets.LLM_JUDGE_API_KEY != '' }}
+      # Small instruct model served by Ollama on the runner's CPU. Pass bars live in evals/thresholds.json.
+      LLM_JUDGE_BASE_URL: http://127.0.0.1:11434/v1
+      LLM_JUDGE_MODEL: qwen2.5:1.5b-instruct
+      EVAL_BASE_URL: http://127.0.0.1:8080
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -26,30 +50,90 @@ jobs:
       - name: Package service
         run: ./mvnw -B -q -DskipTests package
 
-      - name: Start service
+      - name: Start service on Postgres and Redis
+        env:
+          CHATADS_DB_URL: jdbc:postgresql://127.0.0.1:5432/chatads
+          CHATADS_DB_USER: chatads
+          CHATADS_DB_PASSWORD: ci-only
+          CHATADS_CACHE_ENABLED: "true"
         run: |
-          java -jar target/chat-ads-eval.jar > service.log 2>&1 &
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:8080/actuator/health > /dev/null; then exit 0; fi
+          java -Xmx512m -jar target/chat-ads-eval.jar > service.log 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8080/actuator/health > /dev/null; then exit 0; fi
             sleep 1
           done
           echo "service did not become healthy"; cat service.log; exit 1
 
-      - name: Deterministic eval (fails the job on any failed check)
-        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--base-url http://localhost:8080 --dataset evals/prompts.jsonl"
+      - name: Deterministic eval (fails the job below the bar in evals/thresholds.json)
+        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode deterministic"
 
-      - name: LLM judge (stub, only when the secret exists)
-        if: ${{ env.HAS_JUDGE_KEY == 'true' }}
-        env:
-          LLM_JUDGE_API_KEY: ${{ secrets.LLM_JUDGE_API_KEY }}
-        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode judge"
+      - name: Check that hybrid retrieval answered, not the fallback
+        run: |
+          curl -sf http://127.0.0.1:8080/actuator/prometheus > metrics.txt
+          grep -E '^chatads_fallback_total\{reason="backend_error"\} 0\.0$' metrics.txt
+          grep -q "Catalog in Postgres" service.log
 
-      - name: Upload eval report
+      - name: Cache Ollama models
+        uses: actions/cache@v4
+        with:
+          path: ~/ollama-models
+          key: ollama-${{ env.LLM_JUDGE_MODEL }}
+
+      - name: Start Ollama and pull the judge model
+        run: |
+          mkdir -p ~/ollama-models
+          docker run -d --name ollama -p 127.0.0.1:11434:11434 \
+            -e OLLAMA_KEEP_ALIVE=1h -e OLLAMA_NUM_PARALLEL=1 \
+            -v ~/ollama-models:/root/.ollama ollama/ollama:0.32.15
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:11434/api/version > /dev/null; then break; fi
+            sleep 2
+          done
+          docker exec ollama ollama pull "$LLM_JUDGE_MODEL"
+
+      - name: Judge calibration (does the judge agree with the labeled cases)
+        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode calibration --require-judge --judge-report target/judge-calibration.json"
+
+      - name: LLM judge over the eval set
+        run: ./mvnw -B -q exec:java -Dexec.mainClass=dev.chatads.eval.EvalRunner -Dexec.args="--mode judge --require-judge"
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "### Eval gate"
+            if [ -f target/eval-report.json ]; then
+              echo "Deterministic: $(jq '.total - .failed' target/eval-report.json) of $(jq .total target/eval-report.json) cases passed."
+            fi
+            if [ -f target/judge-calibration.json ]; then
+              echo ""
+              echo "Judge model \`$LLM_JUDGE_MODEL\`. Calibration against the labeled cases:"
+              echo '```json'
+              jq '.calibration | del(.items)' target/judge-calibration.json
+              echo '```'
+            fi
+            if [ -f target/judge-report.json ]; then
+              echo ""
+              echo "Scores over the eval set (estimated cost \$$(jq .estimated_cost_usd target/judge-report.json)):"
+              echo '```json'
+              jq '{dimensions, breaches}' target/judge-report.json
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload eval reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
           path: |
             target/eval-report.json
+            target/judge-report.json
+            target/judge-calibration.json
             service.log
+            metrics.txt
           if-no-files-found: ignore
+
+      - name: Stop containers
+        if: always()
+        run: docker rm -f ollama || true

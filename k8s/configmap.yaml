@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-ads-config
+  namespace: chat-ads
+data:
+  PORT: "8080"
+  CHATADS_CACHE_ENABLED: "true"
+  CHATADS_CACHE_TTL: PT10M
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: "6379"
+  CHATADS_EMBEDDING_PROVIDER: hash
+  CHATADS_DB_URL: jdbc:postgresql://postgres:5432/chatads
+  CHATADS_DB_USER: chatads

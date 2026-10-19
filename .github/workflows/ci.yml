@@ -82,3 +82,14 @@ jobs:
             ghcr.io/dakshshukla10/chat-ads-eval:latest
             ghcr.io/dakshshukla10/chat-ads-eval:${{ github.sha }}
           cache-from: type=gha
+
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Kubernetes 1.30 manifests
+        run: |
+          docker run --rm -v "$PWD/k8s:/k8s:ro" ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -summary -kubernetes-version 1.30.0 \
+            /k8s/namespace.yaml /k8s/configmap.yaml /k8s/secret.example.yaml \
+            /k8s/deployment.yaml /k8s/service.yaml /k8s/dev-deps.yaml

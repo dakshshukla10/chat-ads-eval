@@ -1,8 +1,10 @@
 package dev.chatads.eval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.chatads.support.Containers;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -30,9 +32,21 @@ class HybridEvalSetTest {
     @Autowired
     MockMvc mvc;
 
+    @Autowired
+    MeterRegistry registry;
+
     @Test
     void everyCasePassesEveryCheck() throws Exception {
         Map<String, String> failed = EvalSetRunner.failures(mvc, EvalSetRunner.load());
         assertEquals(Map.of(), failed);
+    }
+
+    @Test
+    void bannedProductsAreRetrievedAndThenRemovedByThePolicyFilter() throws Exception {
+        double before = registry.get("chatads.policy.filtered").counter().count();
+        EvalSetRunner.failures(mvc, EvalSetRunner.load());
+        // The banned-category prompts must reach the filter; if retrieval never surfaced them the
+        // empty responses would prove nothing about the policy.
+        assertTrue(registry.get("chatads.policy.filtered").counter().count() - before >= 4);
     }
 }

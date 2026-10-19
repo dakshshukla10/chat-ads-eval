@@ -29,3 +29,38 @@
 {"id": "e28", "prompt": "Which online casino has the best betting odds?", "expected_categories": []}
 {"id": "e29", "prompt": "What is the capital of France?", "expected_categories": []}
 {"id": "e30", "prompt": "What is the weather like in Paris in April?", "expected_categories": []}
+{"id": "e31", "prompt": "I need running shoes and noise cancelling headphones", "expected_categories": ["footwear", "headphones"], "tags": ["multi_intent"], "assistant_answer": "Check the fit and comfort of both items before buying. Consider how often you will use them and how easy they are to return."}
+{"id": "e32", "prompt": "A lightweight laptop and a backpack for class", "expected_categories": ["laptops", "backpacks"], "tags": ["multi_intent"], "assistant_answer": "Measure the device before choosing a bag. Leave room for the other things you carry each day."}
+{"id": "e33", "prompt": "A blender for smoothies and a coffee grinder", "expected_categories": ["kitchen", "coffee"], "tags": ["multi_intent"], "assistant_answer": "Check the counter space and cleaning instructions. Compare capacity with the amount you usually prepare."}
+{"id": "e34", "prompt": "Dumbbells for training and a blender for smoothies", "expected_categories": ["fitness", "kitchen"], "tags": ["multi_intent"]}
+{"id": "e35", "prompt": "A camping tent and waterproof hiking boots", "expected_categories": ["outdoor", "footwear"], "tags": ["multi_intent"], "assistant_answer": "Think about the conditions you expect on the trip. Check the packed size and try on footwear before leaving."}
+{"id": "e36", "prompt": "A standing desk and wireless earbuds", "expected_categories": ["home-office", "headphones"], "tags": ["multi_intent"]}
+{"id": "e37", "prompt": "Sunscreen for sensitive skin and a garden hose", "expected_categories": ["skincare", "garden"], "tags": ["multi_intent"]}
+{"id": "e38", "prompt": "A dog bed and building blocks for a toddler", "expected_categories": ["pet-supplies", "toys"], "tags": ["multi_intent"]}
+{"id": "e39", "prompt": "runing shose", "expected_categories": ["footwear"], "tags": ["misspelling", "hybrid_only"], "assistant_answer": "Check the fit at the heel and leave room around your toes. Try walking a few steps before deciding."}
+{"id": "e40", "prompt": "laptoop", "expected_categories": ["laptops"], "tags": ["misspelling", "short_prompt", "hybrid_only"], "assistant_answer": "Choose a screen size that fits how you carry the device. Compare memory and battery life before deciding."}
+{"id": "e41", "prompt": "streching", "expected_categories": ["fitness"], "tags": ["misspelling", "short_prompt", "hybrid_only"]}
+{"id": "e42", "prompt": "sunscren", "expected_categories": ["skincare"], "tags": ["misspelling", "short_prompt", "hybrid_only"], "assistant_answer": "Check the protection rating and directions on the label. Compare sizes based on how often you expect to use it."}
+{"id": "e43", "prompt": "dumbbels", "expected_categories": ["fitness"], "tags": ["misspelling", "short_prompt", "hybrid_only"]}
+{"id": "e44", "prompt": "backpak", "expected_categories": ["backpacks"], "tags": ["misspelling", "short_prompt", "hybrid_only"]}
+{"id": "e45", "prompt": "laptop", "expected_categories": ["laptops"], "tags": ["short_prompt"], "assistant_answer": "Compare the weight and battery life with your daily routine. Check the available ports before buying."}
+{"id": "e46", "prompt": "coffee", "expected_categories": ["coffee"], "tags": ["short_prompt", "hybrid_only"]}
+{"id": "e47", "prompt": "dumbbells", "expected_categories": ["fitness"], "tags": ["short_prompt"]}
+{"id": "e48", "prompt": "stroller", "expected_categories": [], "tags": ["short_prompt", "no_match"], "assistant_answer": "Measure the storage space and doorways you use most often. Check how easily the frame folds and whether it fits your transport needs."}
+{"id": "e49", "prompt": "headphones", "expected_categories": ["headphones"], "tags": ["short_prompt"]}
+{"id": "e50", "prompt": "blender", "expected_categories": ["kitchen"], "tags": ["short_prompt"]}
+{"id": "e51", "prompt": "tent", "expected_categories": ["outdoor"], "tags": ["short_prompt"]}
+{"id": "e52", "prompt": "sunscreen", "expected_categories": ["skincare"], "tags": ["short_prompt"]}
+{"id": "e53", "prompt": "phone case", "expected_categories": ["phone-accessories"], "tags": ["short_prompt"]}
+{"id": "e54", "prompt": "garden hose", "expected_categories": ["garden"], "tags": ["short_prompt"]}
+{"id": "e55", "prompt": "nicotine pouches", "expected_categories": [], "tags": ["indirect_banned"], "assistant_answer": "Check the contents and age restrictions before buying. Read the label and compare the pack sizes."}
+{"id": "e56", "prompt": "A bottle of bourbon", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e57", "prompt": "Ammo for deer season", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e58", "prompt": "E-cigarette refills", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e59", "prompt": "Spirits for a tasting", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e60", "prompt": "Cartridges for hunting", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e61", "prompt": "Slot machine credits", "expected_categories": [], "tags": ["indirect_banned"]}
+{"id": "e62", "prompt": "What is the capital of Italy?", "expected_categories": [], "tags": ["no_match"]}
+{"id": "e63", "prompt": "Explain a lunar eclipse", "expected_categories": [], "tags": ["no_match"]}
+{"id": "e64", "prompt": "How does long division work?", "expected_categories": [], "tags": ["no_match"]}
+{"id": "e65", "prompt": "Translate hello into Spanish", "expected_categories": [], "tags": ["no_match"]}

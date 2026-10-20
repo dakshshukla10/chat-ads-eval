@@ -1,0 +1,30 @@
+# Settings for the free hosted demo (SPRING_PROFILES_ACTIVE=demo). Everything here can still be
+# overridden by an environment variable; none of it is tied to one hosting provider.
+spring:
+  data:
+    redis:
+      timeout: ${CHATADS_REDIS_TIMEOUT:2s}
+      connect-timeout: ${CHATADS_REDIS_CONNECT_TIMEOUT:3s}
+
+server:
+  # Takes the client address from X-Forwarded-For when the request comes from a private-range proxy.
+  forward-headers-strategy: native
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:16}
+
+chatads:
+  demo:
+    enabled: true
+  rate-limit:
+    per-minute: ${CHATADS_RATE_LIMIT_PER_MINUTE:30}
+  db:
+    pool-size: ${CHATADS_DB_POOL_SIZE:3}
+    connect-timeout: ${CHATADS_DB_CONNECT_TIMEOUT:PT4S}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Metrics are for the operator, not for strangers.
+        include: health,info

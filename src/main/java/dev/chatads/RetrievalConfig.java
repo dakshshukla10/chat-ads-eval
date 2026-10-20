@@ -57,7 +57,13 @@ public class RetrievalConfig {
             @Value("${chatads.embedding.base-url}") String baseUrl,
             @Value("${chatads.embedding.model}") String model,
             @Value("${chatads.embedding.api-key}") String apiKey,
-            @Value("${chatads.embedding.timeout}") Duration timeout) {
+            @Value("${chatads.embedding.timeout}") Duration timeout,
+            @Value("${chatads.demo.enabled:false}") boolean demo) {
+        if (demo && !"hash".equalsIgnoreCase(provider)) {
+            // A public demo must not be able to spend a provider's quota.
+            log.warn("Demo mode is on, ignoring embedding provider '{}' and using the offline hash embedder", provider);
+            provider = "hash";
+        }
         HttpEmbedder.Flavor flavor = switch (provider.toLowerCase()) {
             // The offline embedder calls no model, so there is nothing to meter.
             case "hash" -> null;
@@ -76,14 +82,18 @@ public class RetrievalConfig {
     DataSource dataSource(
             @Value("${chatads.db.url}") String url,
             @Value("${chatads.db.user}") String user,
-            @Value("${chatads.db.password}") String password) {
+            @Value("${chatads.db.password}") String password,
+            @Value("${chatads.db.pool-size}") int poolSize,
+            @Value("${chatads.db.connect-timeout}") Duration connectTimeout) {
+        DbConnection db = DbConnection.parse(url, user, password);
         HikariConfig cfg = new HikariConfig();
-        cfg.setJdbcUrl(url);
-        cfg.setUsername(user);
-        cfg.setPassword(password);
-        cfg.setMaximumPoolSize(4);
-        // A dead database should cost a second, not Hikari's default thirty.
-        cfg.setConnectionTimeout(1000);
+        cfg.setJdbcUrl(db.jdbcUrl());
+        cfg.setUsername(db.user().isBlank() ? "chatads" : db.user());
+        cfg.setPassword(db.password());
+        cfg.setMaximumPoolSize(poolSize);
+        // A dead database should cost a second, not Hikari's default thirty. A host that scales to
+        // zero (Neon) needs longer for its first connection after a sleep, so this is configurable.
+        cfg.setConnectionTimeout(connectTimeout.toMillis());
         // Do not fail startup when Postgres is not up yet; the first request retries.
         cfg.setInitializationFailTimeout(-1);
         return new HikariDataSource(cfg);
@@ -114,7 +124,7 @@ public class RetrievalConfig {
             Embedder embedder,
             AdMetrics metrics,
             Catalog catalog,
-            StringRedisTemplate redis,
+            ObjectProvider<StringRedisTemplate> redis,
             @Value("${chatads.retrieval.candidates}") int candidates,
             @Value("${chatads.retrieval.rrf-k}") int rrfK,
             @Value("${chatads.retrieval.min-similarity}") double minSimilarity,
@@ -126,7 +136,7 @@ public class RetrievalConfig {
         Retriever primary = postgres == null ? keyword
                 : new HybridRetriever(postgres, embedder, candidates, rrfK, minSimilarity, relativeCutoff);
         if (cacheEnabled) {
-            primary = new CachingRetriever(primary, catalog, redis, embedder.id(), cacheTtl, metrics);
+            primary = new CachingRetriever(primary, catalog, redis.getObject(), embedder.id(), cacheTtl, metrics);
         }
         return postgres == null ? primary : new ResilientRetriever(primary, keyword, metrics, cooldown);
     }

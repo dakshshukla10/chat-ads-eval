@@ -131,7 +131,13 @@ public final class CachingRetriever implements Retriever {
         long now = System.nanoTime();
         if (lastWarning == null || now - lastWarning >= WARN_INTERVAL_NANOS) {
             lastWarning = now;
-            log.warn("Candidate cache failed, continuing without cache: {}", error.getClass().getSimpleName());
+            Throwable root = error;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            // The root cause tells a timeout from a refused connection or a TLS failure.
+            log.warn("Candidate cache failed, continuing without cache: {}: {}",
+                    error.getClass().getSimpleName(), root.toString());
         }
     }
 }

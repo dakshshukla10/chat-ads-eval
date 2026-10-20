@@ -5,18 +5,32 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      timeout: 250ms
-      connect-timeout: 250ms
+      # A hosted Redis in another region needs more than the local default; see application-demo.yml.
+      timeout: ${CHATADS_REDIS_TIMEOUT:250ms}
+      connect-timeout: ${CHATADS_REDIS_CONNECT_TIMEOUT:250ms}
+      # For a hosted Redis set SPRING_DATA_REDIS_URL=rediss://default:<password>@<host>:6379 (TLS comes
+      # from the rediss scheme and the url wins over host and port), or set SPRING_DATA_REDIS_PASSWORD
+      # and SPRING_DATA_REDIS_SSL_ENABLED=true next to the host and port.
 
 server:
   port: ${PORT:8080}
 
 chatads:
   # Postgres (full-text + pgvector). Leave the url empty to run on the in-memory keyword retriever only.
+  # The url may be jdbc:postgresql://... or a postgresql://user:password@host/db string; add
+  # sslmode=require for a hosted database.
   db:
     url: ${CHATADS_DB_URL:}
-    user: ${CHATADS_DB_USER:chatads}
+    user: ${CHATADS_DB_USER:}
     password: ${CHATADS_DB_PASSWORD:}
+    pool-size: ${CHATADS_DB_POOL_SIZE:4}
+    connect-timeout: ${CHATADS_DB_CONNECT_TIMEOUT:PT1S}
+  # Hosted public demo: forces the offline embedder. The demo profile turns this on.
+  demo:
+    enabled: ${CHATADS_DEMO:false}
+  # Requests per minute per client address on /v1/. Zero turns it off.
+  rate-limit:
+    per-minute: ${CHATADS_RATE_LIMIT_PER_MINUTE:0}
   retrieval:
     candidates: 20
     rrf-k: 60

@@ -3,8 +3,8 @@
 spring:
   data:
     redis:
-      timeout: ${CHATADS_REDIS_TIMEOUT:2s}
-      connect-timeout: ${CHATADS_REDIS_CONNECT_TIMEOUT:3s}
+      timeout: ${CHATADS_REDIS_TIMEOUT:4s}
+      connect-timeout: ${CHATADS_REDIS_CONNECT_TIMEOUT:5s}
 
 server:
   # Takes the client address from X-Forwarded-For when the request comes from a private-range proxy.

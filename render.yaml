@@ -1,0 +1,26 @@
+# Render Blueprint for the free hosted demo. The image is built from the Dockerfile in this repo.
+# Values marked sync: false are asked for in the dashboard the first time the Blueprint is applied.
+services:
+  - type: web
+    name: chat-ads-eval
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    autoDeployTrigger: commit
+    envVars:
+      # Offline embeddings, no metrics endpoint, per-IP rate limit, longer database and Redis timeouts.
+      - key: SPRING_PROFILES_ACTIVE
+        value: demo
+      # Neon connection string, for example
+      # postgresql://user:password@ep-xxxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+      # Leave it empty to serve from the in-memory catalog only.
+      - key: CHATADS_DB_URL
+        sync: false
+      # Set to true after filling in SPRING_DATA_REDIS_URL.
+      - key: CHATADS_CACHE_ENABLED
+        value: "false"
+      # Upstash url, for example rediss://default:password@xxxx.upstash.io:6379
+      - key: SPRING_DATA_REDIS_URL
+        sync: false

@@ -71,6 +71,7 @@ An example of what hybrid retrieval buys: the prompt `runing shose` has no word 
 | Grafana dashboard and alert rules | Done | Alert rules have promtool tests that run in CI |
 | Dockerfile and image CI | Done | Smoke-tested in CI; pushed to GHCR from `main` |
 | Kubernetes manifests | Done | Validated with kubeconform in CI; see the note under Deployment |
+| Free-hosting setup | Done, not deployed yet | Landing page, `demo` profile, `render.yaml`; see Hosted demo |
 
 What is still weak: the offline embedder matches spelling, not meaning. The judge model is small and noisy. The retrieval thresholds were tuned on the same synthetic set the gate uses. Nothing has been load tested.
 
@@ -195,6 +196,52 @@ The multi-stage `Dockerfile` builds a non-root image. CI builds it, starts it wi
 
 `k8s/` holds a namespace, ConfigMap, Deployment, Service, a secret example and dev-only Postgres and Redis. See [k8s/README.md](k8s/README.md). CI validates the manifests with kubeconform against Kubernetes 1.30 schemas. The manifests were also applied once to a throwaway local kind cluster, where both app replicas and the dev dependencies became ready; that check is not part of CI and no real cluster has run them.
 
+### Hosted demo
+
+Live demo: TBD
+
+The demo is meant for free hosting: a 512 MB container with a tenth of a CPU, Neon for Postgres and Upstash for Redis. [render.yaml](render.yaml) is a Render Blueprint for it (Docker runtime, free plan, Singapore). Nothing in the application is specific to Render, and the same image runs under plain `docker run` or `docker compose` on a VM.
+
+Free instances sleep after about 15 idle minutes. The first request after that waits for the container to start, which took close to a minute in the measurements below. The landing page at `/` says so, and it states that the catalog is synthetic and the embeddings are the offline hash embedder.
+
+Setting `SPRING_PROFILES_ACTIVE=demo` turns on the hosted configuration:
+
+- Embeddings stay on the offline hash embedder, whatever `CHATADS_EMBEDDING_*` says.
+- `/actuator/prometheus` is not exposed. Health and info are.
+- Each client address gets 30 requests a minute on `/v1/`, then HTTP 429 with a `Retry-After` header. The counter lives in memory, so a restart resets it.
+- The client address comes from `X-Forwarded-For` when the request arrives from a private-range proxy. I have not checked what Render's proxy sends, so look at the first 429 in the logs before trusting the per-address count.
+- Redis and Postgres timeouts are longer, and Tomcat is capped at 16 threads.
+
+The service has no endpoint that writes the catalog. The one thing a stranger can write is a cache entry for their own prompt, which expires after `CHATADS_CACHE_TTL` (ten minutes by default) and is never read as anything but candidates for that prompt.
+
+| Variable | Purpose |
+| :-- | :-- |
+| `SPRING_PROFILES_ACTIVE=demo` | The hosted configuration above |
+| `PORT` | HTTP port. The host sets it (10000 on Render); the default is 8080 |
+| `CHATADS_DB_URL` | Postgres url. Either `jdbc:postgresql://...` or the `postgresql://user:password@host/db?sslmode=require` string a host such as Neon shows. Empty means the in-memory keyword retriever only |
+| `CHATADS_DB_USER`, `CHATADS_DB_PASSWORD` | Optional when the url carries them; when set they win |
+| `CHATADS_DB_CONNECT_TIMEOUT`, `CHATADS_DB_POOL_SIZE` | Default `PT4S` and 3 in the demo profile (`PT1S` and 4 otherwise). A database that sleeps needs the longer timeout for its first connection |
+| `CHATADS_CACHE_ENABLED` | `true` turns the Redis candidate cache on. Redis is not set up at all while it is `false` |
+| `SPRING_DATA_REDIS_URL` | `rediss://default:<password>@<host>:6379`. The `rediss` scheme turns on TLS, and the url wins over host and port |
+| `SPRING_DATA_REDIS_HOST`, `_PORT`, `_PASSWORD`, `_SSL_ENABLED` | The same thing in separate parts, if you prefer |
+| `CHATADS_REDIS_TIMEOUT`, `CHATADS_REDIS_CONNECT_TIMEOUT` | Default `4s` and `5s` in the demo profile, `250ms` otherwise. The first TLS and AUTH exchange on a throttled CPU took more than 2 s in my runs, and a Redis in another region adds more |
+| `CHATADS_RATE_LIMIT_PER_MINUTE` | Requests per client address per minute on `/v1/`. 30 in the demo profile, 0 (off) otherwise |
+| `JAVA_OPTS` | JVM flags. The image sets them for 512 MB; replace them only with a reason |
+
+The database url needs `sslmode=require` on Neon. The service creates the `vector` extension and its own table on startup, so there is no separate migration step and the pooled Neon host can be used for everything. A dead Redis costs each request up to the timeout, so set `CHATADS_CACHE_ENABLED=false` if the cache host is down.
+
+The image starts the application once while it builds, sends a few requests and saves the loaded classes as a class-data archive. It runs on the serial collector with only the C1 compiler, a 512 KB thread stack and capped metaspace and code cache, which keeps start-up CPU and memory down on a slow container.
+
+Measured on a laptop under Colima (a shared Docker VM with 2 CPUs, other builds running at the same time), with the container limited to `--memory=512m --cpus=0.1`, a local Postgres with `ssl=on` and a local Redis with TLS and a password, reached over `sslmode=require` and a `rediss://` url. The catalog is synthetic.
+
+| Image | Result |
+| :-- | :-- |
+| Earlier Dockerfile (fat jar, default JIT, 70% heap), one run | Not healthy after 4.5 minutes, then killed for running out of memory |
+| Current Dockerfile | Spring reported start-up in 38 to 47 s over four runs; health check up after 47 to 59 s; first request 10 to 15 s (the first TLS connections to Postgres and Redis); 48 sequential requests all returned 200 with no restart or kill; resident memory about 185 to 190 MB afterwards |
+| Current Dockerfile, `--cpus=1` with CI's read-only filesystem | Healthy in under 4 s and about 108 MiB of memory after one request |
+
+The TLS paths were tested against local servers with a private certificate authority, not against Neon or Upstash themselves. I have not run the Blueprint on Render, so real wake-up times there may differ.
+
 ## Layout
 
 ```text
@@ -208,11 +255,14 @@ src/main/java/dev/chatads/
   llm/          price table and token usage
   eval/         deterministic checks, runner, thresholds, calibration
   eval/judge/   judge client, rubric loading, strict verdict parser
-src/main/resources/   catalog.json, banned-categories.txt, llm-prices.json, application.yml
+  web/          per-address rate limit
+src/main/resources/   catalog.json, banned-categories.txt, llm-prices.json, application.yml,
+                      application-demo.yml, static/ (landing page)
 src/test/java/        unit tests and Testcontainers tests for Postgres and Redis
 evals/                prompts.jsonl, thresholds.json, judge/ (rubrics and calibration set)
 observability/        Prometheus config, alert rules and tests, Grafana provisioning and dashboard
 k8s/                  Kubernetes manifests
+render.yaml           Render Blueprint for the free hosted demo
 docs/                 architecture notes
 .github/workflows/    ci.yml, eval-gate.yml
 ```

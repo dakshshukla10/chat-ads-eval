@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>chat-ads-eval demo</title>
+  <meta name="description" content="Contextual sponsored products for a shopping chat, returned apart from the assistant's answer.">
+  <link rel="stylesheet" href="/demo.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>chat-ads-eval</h1>
+      <p>
+        Give the service a shopper's message and it picks up to three sponsored products to show beside the
+        assistant's reply. The reply and the ads travel in separate fields, and every ad carries a
+        <code>Sponsored</code> label. Categories on the banned list, such as tobacco, never come back.
+      </p>
+      <p class="note">
+        This hosted demo runs on a small synthetic catalog with an offline embedder, and nobody has used it for real
+        shopping. It runs on free hosting that sleeps when idle, so the first request after a pause can take about a
+        minute.
+      </p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <div class="samples" role="group" aria-label="Sample prompts">
+        <span>Try</span>
+        <button type="button" data-sample="0">Headphones for a commute</button>
+        <button type="button" data-sample="1">Laptop for a student</button>
+        <button type="button" data-sample="2">Banned category</button>
+      </div>
+
+      <label for="prompt">Shopper prompt</label>
+      <input id="prompt" name="prompt" type="text" maxlength="2000" required
+             value="noise cancelling headphones for my commute">
+
+      <label for="answer">Assistant answer <span class="optional">(optional, sent back untouched)</span></label>
+      <textarea id="answer" name="answer" rows="3" maxlength="8000">For a daily commute, look for strong noise cancelling, comfortable ear cups and at least 20 hours of battery.</textarea>
+
+      <button id="submit" type="submit">Get ads</button>
+    </form>
+
+    <section aria-live="polite" aria-busy="false" id="result" hidden>
+      <p id="status" class="status"></p>
+      <div class="columns" id="columns">
+        <div class="panel">
+          <h2>Answer slot</h2>
+          <p class="hint">Written by the host assistant. The service returns it as it came in.</p>
+          <p id="answer-out" class="answer"></p>
+        </div>
+        <div class="panel">
+          <h2>Sponsored</h2>
+          <p class="hint">Chosen from the shopper's prompt only, and shown apart from the answer.</p>
+          <ul id="ads"></ul>
+        </div>
+      </div>
+      <details>
+        <summary>Raw response</summary>
+        <pre id="raw"></pre>
+      </details>
+    </section>
+
+    <footer>
+      <p>
+        The call behind the form is <code>POST /v1/ads/contextual</code> with
+        <code>{"prompt": "...", "assistant_answer": "..."}</code>.
+        Source and eval results are on <a href="https://github.com/dakshshukla10/chat-ads-eval">GitHub</a>.
+      </p>
+    </footer>
+  </main>
+  <script src="/demo.js"></script>
+</body>
+</html>
